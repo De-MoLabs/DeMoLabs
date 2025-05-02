@@ -16,6 +16,8 @@ import { ArrowSpec } from "Shape3D";
 import { ParserConfig } from "./parsers/ParserConfig";
 import { LabelSpec } from "Label";
 import { createConnections } from "./parsers/utils/createConnections";
+import { DEFAULT_ATOM_RADIUS, DEFAULT_BOND_RADIUS, DEFAULT_BOND_LENGTH, BOND_DISTANCE_FACTOR } from "./constants";
+
 export class ModelDeMol {
     static defaultAtomStyle: AtomStyleSpec = {
         line: {}
@@ -102,11 +104,11 @@ export class ModelDeMol {
     private ElementColors: any;
     private readonly defaultSphereRadius: number;
     private readonly defaultCartoonQuality: number;
-    private readonly defaultStickRadius = 0.25;
+    private readonly defaultStickRadius = DEFAULT_BOND_RADIUS;
     constructor(mid, options?) {
         this.options = options || {};
         this.ElementColors = (this.options.defaultcolors) ? this.options.defaultcolors : elementColors.defaultColors;
-        this.defaultSphereRadius = (this.options.defaultSphereRadius) ? this.options.defaultSphereRadius : 1.5;
+        this.defaultSphereRadius = (this.options.defaultSphereRadius) ? this.options.defaultSphereRadius : DEFAULT_ATOM_RADIUS;
         this.defaultCartoonQuality = (this.options.cartoonQuality) ? this.options.cartoonQuality : 10;
         this.id = mid;
     }
@@ -563,12 +565,12 @@ export class ModelDeMol {
         const style = atom.style.stick;
         if (style.hidden)
             return;
-        const atomBondR = style.radius || this.defaultStickRadius;
-        const doubleBondScale = style.doubleBondScaling || 0.4;
-        const tripleBondScale = style.tripleBondScaling || 0.25;
+        const radius = (style.radius ? style.radius : this.defaultStickRadius);
+        const dblBondScale = (style.doubleBondScaling ? style.doubleBondScaling : BOND_DISTANCE_FACTOR);
+        const trplBondScale = (style.tripleBondScaling ? style.tripleBondScaling : 2.0 * BOND_DISTANCE_FACTOR);
         const bondDashLength = style.dashedBondConfig?.dashLength || 0.1;
         const bondGapLength = style.dashedBondConfig?.gapLength || 0.25;
-        let bondR = atomBondR;
+        let bondR = radius;
         const atomSingleBond = style.singleBonds || false;
         const atomDashedBonds = style.dashedBonds || false;
         let fromCap = 0, toCap = 0;
@@ -600,7 +602,7 @@ export class ModelDeMol {
                 if (!style2.stick || style2.stick.hidden)
                     continue; 
                 let C2 = getColorFromStyle(atom2, style2.stick);
-                bondR = atomBondR;
+                bondR = radius;
                 singleBond = atomSingleBond;
                 if (atom.bondStyles && atom.bondStyles[i]) {
                     bstyle = atom.bondStyles[i];
@@ -651,7 +653,7 @@ export class ModelDeMol {
                 else if (atom.bondOrder[i] > 1) {
                     let mfromCap = 0;
                     let mtoCap = 0;
-                    if (bondR != atomBondR) {
+                    if (bondR != radius) {
                         mfromCap = 2;
                         mtoCap = 2;
                     }
@@ -661,7 +663,7 @@ export class ModelDeMol {
                     var r, p1a, p1b, p2a, p2b;
                     v = this.getSideBondV(atom, atom2, i);
                     if (atom.bondOrder[i] == 2) {
-                        r = bondR * doubleBondScale;
+                        r = dblBondScale * bondR;
                         v.multiplyScalar(r * 1.5);
                         p1a = p1.clone();
                         p1a.add(v);
@@ -706,7 +708,7 @@ export class ModelDeMol {
                         }
                     }
                     else if (atom.bondOrder[i] == 3) {
-                        r = bondR * tripleBondScale;
+                        r = trplBondScale * bondR;
                         v.cross(dir);
                         v.normalize();
                         v.multiplyScalar(r * 3);
@@ -774,7 +776,7 @@ export class ModelDeMol {
             if (atom.bondStyles && atom.bondStyles[i]) {
                 bstyle = atom.bondStyles[i];
                 if (bstyle.singleBond) singleBond = true;
-                if (bstyle.radius && bstyle.radius != atomBondR) {
+                if (bstyle.radius && bstyle.radius != radius) {
                     differentradii = true;
                 }
             }
@@ -789,7 +791,7 @@ export class ModelDeMol {
             drawSphere = true;
         }
         if (drawSphere) {
-            bondR = atomBondR;
+            bondR = radius;
             if (geo.imposter) {
                 this.drawSphereImposter(geo.sphereGeometry, atom as XYZ, bondR, C1);
             }
